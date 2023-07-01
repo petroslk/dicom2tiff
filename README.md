@@ -25,6 +25,14 @@ Finally, install dicom2tiff:
 pip install .
 ```
 
+## Docker
+
+You can also directly pull the docker container from dockerhub
+
+```
+docker pull petroslk/dicom2tiff:latest
+```
+
 ## Usage
 
 Provide one directory or a glob pattern of WSI-DICOM directories
@@ -32,6 +40,13 @@ Provide one directory or a glob pattern of WSI-DICOM directories
 ```
 dicom2tiff path/to/dicom_dir_patient* --output_dir converted_slides
 ```
+
+Using the docker:
+
+```
+docker run -it -v /path/to/slides/:/app dicom2tiff patient_* --output_dir converted_slides
+```
+
 ## Caveats
 
 dicom2tiff will take the largest file inside of the WSI-DICOM dir, which should always correspond to the dcm file of the highest available magnification.
