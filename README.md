@@ -1,8 +1,7 @@
-## dicom2tiff: conversion of DICOM-WSI directories to OpenSlide compatible pyramidal TIFF files
-
+# dicom2tiff
 dicom2tiff is a small wrapper tool that combines bfconvert and vips to create a OpenSlide compatible TIFF pyramidal file.
 
-# Installation
+## Installation
 
 Use of conda is recommended for installation and usage
 
@@ -26,14 +25,14 @@ Finally, install dicom2tiff:
 pip install .
 ```
 
-# Usage
+## Usage
 
 Provide one directory or a glob pattern of WSI-DICOM directories
 
 ```
 dicom2tiff path/to/dicom_dir_patient* --output_dir converted_slides
 ```
-# Caveats
+## Caveats
 
 dicom2tiff will take the largest file inside of the WSI-DICOM dir, which should always correspond to the dcm file of the highest available magnification.
 
