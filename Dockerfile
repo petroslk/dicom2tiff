@@ -10,16 +10,22 @@ LABEL description="This image provides a tool to convert WSI-DICOM files to TIFF
 LABEL website="https://github.com/petroslk"
 LABEL maintainer="Petros Liakopoulos"
 
+# Increase JVM heap size
+ENV JAVA_TOOL_OPTIONS: "-Xmx8g"
+ENV _JAVA_OPTIONS="-Xmx8g"
 
 # Install necessary dependencies
 # Update and install libvips
 RUN apt-get update && apt-get install -y \
     libopenjp2-7 \
     libtiff5 \
-    libvips
+    gcc 
 
 # Update conda
 RUN conda update -n base -c defaults conda
+
+# Install pyvips
+RUN conda install -c conda-forge pyvips
 
 # Install Bio-Formats command line tools with conda
 RUN conda install -c bioconda bftools
