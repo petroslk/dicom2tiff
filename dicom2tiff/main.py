@@ -4,6 +4,7 @@ import argparse
 import subprocess
 import pyvips
 from tqdm import tqdm
+import datetime
 
 def convert_dicom_to_tiff(input_file, output_dir):
 
@@ -12,8 +13,8 @@ def convert_dicom_to_tiff(input_file, output_dir):
     intermediate_file = os.path.join(output_dir, f"{base_filename}.tiff")
     output_file = os.path.join(output_dir, f"{base_filename}_converted.tiff")
     print(f"Launching bfconvert for :{base_filename}")
-    bfconvert_command = ["bfconvert", "-bigtiff", input_file, intermediate_file]
-    subprocess.run(bfconvert_command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    bfconvert_command = ["bfconvert", "-compression","LZW", "-bigtiff", input_file, intermediate_file]
+    subprocess.run(bfconvert_command, check=True)
 
     # Step 2: Load the single layer TIFF into pyvips
     image = pyvips.Image.new_from_file(intermediate_file, access="sequential")
@@ -29,7 +30,7 @@ def convert_dicom_to_tiff(input_file, output_dir):
 
     print(f"Saving pyramid for :{base_filename}")
     # Step 3: Convert TIFF to pyramid using pyvips and populate metadata
-    image.tiffsave(output_file, tile=True, pyramid=True, compression="jpeg")
+    image.tiffsave(output_file, compression = "jpeg", tile=True, pyramid=True)
 
     # Step 4: Remove the intermediate file
     os.remove(intermediate_file)
