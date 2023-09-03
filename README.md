@@ -44,7 +44,7 @@ dicom2tiff path/to/dicom_dir_patient* --output_dir converted_slides
 Using the docker:
 
 ```
-docker run -it -v /path/to/slides/:/app dicom2tiff patient_* --output_dir converted_slides
+docker run -it -v /path/to/slides/:/app petroslk/dicom2tiff:latest dicom2tiff patient_* --output_dir converted_slides
 ```
 
 ## Caveats
