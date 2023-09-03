@@ -19,7 +19,13 @@ ENV _JAVA_OPTIONS="-Xmx8g"
 RUN apt-get update && apt-get install -y \
     libopenjp2-7 \
     libtiff5 \
-    gcc 
+    gcc \
+    openjdk-11-jre
+
+RUN apt-get install -y wget unzip && \
+    wget https://downloads.openmicroscopy.org/bio-formats/6.13.0/artifacts/bftools.zip -O /tmp/bftools.zip && \
+    unzip /tmp/bftools.zip -d /opt/ && \
+    rm /tmp/bftools.zip
 
 # Update conda
 RUN conda update -n base -c defaults conda
@@ -27,8 +33,8 @@ RUN conda update -n base -c defaults conda
 # Install pyvips
 RUN conda install -c conda-forge pyvips
 
-# Install Bio-Formats command line tools with conda
-RUN conda install -c bioconda bftools
+#dd bftools bins to path
+ENV PATH="/opt/bftools:${PATH}"
 
 # Clone repo
 RUN git clone https://github.com/petroslk/dicom2tiff.git
