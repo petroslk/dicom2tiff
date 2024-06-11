@@ -51,6 +51,8 @@ docker run -it -v /path/to/slides/:/app petroslk/dicom2tiff:latest dicom2tiff di
 ## Important info
 
 dicom2tiff will write a temporary file which can be quite large, so make sure you have enough space on your disk.
+Please remove any files that are not dicom layers (files with .import or .graphics should be removed)
+
 
 ## Issues
 
@@ -59,4 +61,5 @@ If you are having problems with the tool, please open an issue! We'll do our bes
 ## Authors
 
 [Julien Massonnet](https://github.com/JulienMassonnet)
+
 [Petros Liakopoulos](https://github.com/petroslk)
