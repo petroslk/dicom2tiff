@@ -1,5 +1,6 @@
 # dicom2tiff
-dicom2tiff is a small wrapper tool that combines bfconvert and vips to create a OpenSlide compatible TIFF pyramidal file.
+dicom2tiff is a tool for converting DICOM Whole Slide Images to generic pyramidal TIF files.
+Since currently not all DICOM flavors are supported by OpenSlide, this tool should help you convert some of them to an openslide compatible format.
 
 ## Installation
 
@@ -15,8 +16,7 @@ sudo apt-get install libvips
 Then, install dependencies using conda
 ```
 conda create -n dicom2tiff python=3.10
-conda activate
-conda install -c ome bftools
+conda activate dicom2tiff
 ```
 
 Finally, install dicom2tiff:
@@ -38,25 +38,15 @@ docker pull petroslk/dicom2tiff:latest
 Provide one directory or a glob pattern of WSI-DICOM directories
 
 ```
-dicom2tiff path/to/dicom_dir_patient* --output_dir converted_slides
+dicom2tiff path/to/dicom_dir_patient*/ -o converted_slides
 ```
 
 Using the docker:
 
 ```
-docker run -it -v /path/to/slides/:/app petroslk/dicom2tiff:latest dicom2tiff patient_* --output_dir converted_slides
+docker run -it -v /path/to/slides/:/app petroslk/dicom2tiff:latest dicom2tiff dicom_dirs*/ -o converted_slides
 ```
 
-## Caveats
+## Important info
 
-dicom2tiff will take the largest file inside of the WSI-DICOM dir, which should always correspond to the dcm file of the highest available magnification.
-
-Generic pyramidal tiff files do not store microns per pixel (MPP). Nevertheless, these have been added and can be accessed in the "comment" of the OpenSlide properties.
-
-```
-import openslide
-slide = openslide.OpenSlide("path/to/slide/tiff")
-slide.properties["openslide.comment"]
-```
-
-When opened on QuPath, these slides will not display MPP values.
+dicom2tiff will write a temporary file which can be quite large, so make sure you have enough space on your disk.

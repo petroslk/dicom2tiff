@@ -15,7 +15,7 @@ setup(
 
     author="Your Name",
 
-    author_email="your.email@gmail.com",
+    author_email="liakopoulos.petros@gmail.com",
 
     description="dicom2tiff is a tool for converting DICOM-WSI files to pyramid TIFF files",
 

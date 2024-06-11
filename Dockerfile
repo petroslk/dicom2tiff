@@ -1,46 +1,42 @@
-# Start from a conda based Python image
-FROM continuumio/miniconda3
+# Use ubuntu 22.04 base image
+FROM ubuntu:22.04
 
-# Metadata
-LABEL base.image="continuumio/miniconda3"
-LABEL version="1"
-LABEL software="DICOM to TIFF conversion"
-LABEL software.version="0.0.1"
-LABEL description="This image provides a tool to convert WSI-DICOM files to TIFF format"
-LABEL website="https://github.com/petroslk"
-LABEL maintainer="Petros Liakopoulos"
+# Set non-interactive mode
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Increase JVM heap size
-ENV JAVA_TOOL_OPTIONS: "-Xmx8g"
-ENV _JAVA_OPTIONS="-Xmx8g"
+# System update and install basic tools
+RUN apt update && \
+    apt upgrade -y && \
+    apt install -y software-properties-common wget bzip2 git ninja-build \
+    vim nano libjpeg-dev libcairo2-dev libgdk-pixbuf2.0-dev libglib2.0-dev libvips \
+    libxml2-dev sqlite3 libopenjp2-7-dev libtiff-dev libsqlite3-dev libhdf5-dev libgl1-mesa-glx libvips libffi7 libffi-dev\
+    build-essential && \ 
+    apt clean
 
-# Install necessary dependencies
-# Update and install libvips
-RUN apt-get update && apt-get install -y \
-    libopenjp2-7 \
-    libtiff5 \
-    gcc \
-    openjdk-11-jre
+RUN add-apt-repository ppa:openslide/openslide
+RUN apt install -y openslide-tools
 
-RUN apt-get install -y wget unzip && \
-    wget https://downloads.openmicroscopy.org/bio-formats/6.13.0/artifacts/bftools.zip -O /tmp/bftools.zip && \
-    unzip /tmp/bftools.zip -d /opt/ && \
-    rm /tmp/bftools.zip
+# Install Miniconda
+RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-py38_4.12.0-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -b -p /opt/conda && \
+    rm ~/miniconda.sh && \
+    /opt/conda/bin/conda clean -tipsy && \
+    ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
+    echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    echo "conda activate base" >> ~/.bashrc
 
-# Update conda
-RUN conda update -n base -c defaults conda
+ENV PATH /opt/conda/bin:$PATH
 
-# Install pyvips
-RUN conda install -c conda-forge pyvips
+# Install Python 3.10 using Conda
+RUN conda install -c anaconda python=3.10
+RUN conda install -c conda-forge libvips
 
-#dd bftools bins to path
-ENV PATH="/opt/bftools:${PATH}"
+# Update the LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/os-dicom/builddir/src
 
-# Clone repo
-RUN git clone https://github.com/petroslk/dicom2tiff.git
+
+WORKDIR /
+COPY ./ /dicom2tiff
 WORKDIR /dicom2tiff
-
-# Install necessary Python dependencies
 RUN pip install .
-
 WORKDIR /app

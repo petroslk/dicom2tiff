@@ -1,61 +1,99 @@
-import glob
 import os
+import glob
+import numpy as np
+import pydicom
 import argparse
-import subprocess
-import pyvips
-from tqdm import tqdm
+import logging
 import datetime
+from .utils import magnification_from_mpp, convert_level, create_pyramidal_tiff
 
-def convert_dicom_to_tiff(input_file, output_dir):
-
-    # Step 1: Convert DICOM to single layer TIFF using bfconvert
-    base_filename, _ = os.path.splitext(os.path.basename(input_file))
-    intermediate_file = os.path.join(output_dir, f"{base_filename}.tiff")
-    output_file = os.path.join(output_dir, f"{base_filename}_converted.tiff")
-    print(f"Launching bfconvert for :{base_filename}")
-    bfconvert_command = ["bfconvert", "-compression","LZW", "-bigtiff", input_file, intermediate_file]
-    subprocess.run(bfconvert_command, check=True)
-
-    # Step 2: Load the single layer TIFF into pyvips
-    image = pyvips.Image.new_from_file(intermediate_file, access="sequential")
-
-    # Compute microns per pixel using the resolution
-    mpp_x = 1000 / image.get('xres')  # Converting from cm^-1 to µm per pixel
-    mpp_y = 1000 / image.get('yres')  # Converting from cm^-1 to µm per pixel
-
-    # Extracting existing comment and appending MPP information
-    comment = image.get("image-description")
-    comment += f"\nMPP: {mpp_x}, {mpp_y}"
-    image.set("image-description", comment)
-
-    print(f"Saving pyramid for :{base_filename}")
-    # Step 3: Convert TIFF to pyramid using pyvips and populate metadata
-    image.tiffsave(output_file, compression = "jpeg", tile=True, pyramid=True)
-
-    # Step 4: Remove the intermediate file
-    os.remove(intermediate_file)
-
-def find_largest_file(directory):
-    list_of_files = glob.glob(directory + '/*')
-    largest_file = max(list_of_files, key=os.path.getsize)
-    return largest_file
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Convert DICOM to pyramid TIFF.")
-    parser.add_argument("directories", type=str, nargs='+', help="Directories containing the DICOM files.")
-    parser.add_argument("--output_dir", type=str, default="converted_slides", help="Output directory for TIFF files.")
+def main():
+    parser = argparse.ArgumentParser(prog="dicom2tiff", description='Convert DICOM files to pyramidal TIFF from base magnification')
+    parser.add_argument('dicom_folder',
+                        help="Input filename pattern leading to the folder where the DICOM layers are stored.",
+                        nargs="+",
+                        type=str)
+    parser.add_argument('-o', '--outdir',
+                        help="Output directory, default ./output/",
+                        default="./output/",
+                        type=str)
+    parser.add_argument('-c', '--convert_partial',
+                        help="Only convert non openslide compatible DICOM directories",
+                        action="store_false")
+    parser.add_argument('-n', '--n_process',
+                        help="Number of workers for multiprocessing, default is os.cpu_count()",
+                        default=None,
+                        type=int)
     args = parser.parse_args()
 
-    
-    # Find the largest file in each directory
-    files_to_process = [find_largest_file(dir) for dir in args.directories]
-    print(f"Processing the following files with dicom2tiff: {[os.path.basename(file) for file in files_to_process]}")
-    for file in tqdm(files_to_process):
-        convert_dicom_to_tiff(file, args.output_dir)
+    # Configure logger
+    now = datetime.datetime.now()
+    logger = logging.getLogger("dicom2tiff_" + f"{now.year}_{now.month}_{now.hour}_{now.minute}")
 
+    f_handler = logging.FileHandler("dicom2tiff_" + f"{now.year}_{now.month}_{now.hour}_{now.minute}.txt")
+    c_handler = logging.StreamHandler()
+
+    c_handler.setLevel(logging.WARNING)
+    f_handler.setLevel(logging.ERROR)
+
+    # Create formatters and add it to handlers
+    c_format = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+    f_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    c_handler.setFormatter(c_format)
+    f_handler.setFormatter(f_format)
+
+    # Add handlers to the logger
+    logger.addHandler(c_handler)
+    logger.addHandler(f_handler)
+
+    # Get args
+    slide_dirs = args.dicom_folder
+    out_dir = args.outdir
+    convert_partial = args.convert_partial
+    n_process = args.n_process
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    fail = []
+    for slide_dir in slide_dirs:
+        slide_name = os.path.basename(os.path.dirname(slide_dir))
+        print(f"- Working on {slide_name}")
+        # Get files name
+        list_files = glob.glob(slide_dir + "/*")
+
+        # Get magnification and offset
+        slides_names = {}
+        for names in list_files:
+            slide = pydicom.dcmread(names)
+            offset = slide.get((0x0020, 0x9228), 0)
+            if offset != 0:
+                offset = offset.value
+            slides_names.setdefault(magnification_from_mpp(slide[0x52009229][0][0x00289110][0][0x00280030].value[0] * 10 ** 3), []).append([names, offset])
+
+        # Find base magnification
+        base_mag = np.max(list(slides_names.keys()))
+        mag = base_mag
+
+        # Get file at base magnification
+        list_name_offset = slides_names[base_mag]
+
+        sinfo = {
+            "name": slide_name,
+            "base_mag": base_mag,
+            "mag": mag,
+            'path': out_dir
+        }
+
+        # Convert and create a pyramidal TIFF
+        try:
+            if convert_level(list_name_offset, sinfo, n_process, convert_partial):
+                create_pyramidal_tiff(sinfo)
+        except Exception as e:
+            logger.error(f"File {slide_name} failed: {e}", exc_info=True)
+            fail.append(slide_name)
+
+    for sname in fail:
+        print(f"o Slide {sname} failed to convert")
 
 if __name__ == "__main__":
-    main()    
-
-    
+    main()
