@@ -1,6 +1,7 @@
 # dicom2tiff
 dicom2tiff is a tool for converting DICOM Whole Slide Images to generic pyramidal TIF files.
 Since currently not all DICOM flavors are supported by OpenSlide, this tool should help you convert some of them to an openslide compatible format.
+We recommend using the docker container for conversions.
 
 ## Installation
 
@@ -50,3 +51,12 @@ docker run -it -v /path/to/slides/:/app petroslk/dicom2tiff:latest dicom2tiff di
 ## Important info
 
 dicom2tiff will write a temporary file which can be quite large, so make sure you have enough space on your disk.
+
+## Issues
+
+If you are having problems with the tool, please open an issue! We'll do our best to help!
+
+## Authors
+
+[Julien Massonnet](https://github.com/JulienMassonnet)
+[Petros Liakopoulos](https://github.com/petroslk)
