@@ -5,11 +5,11 @@ import pydicom
 import argparse
 import logging
 import datetime
-from .utils import magnification_from_mpp, convert_level, create_pyramidal_tiff
+import sys
 
 def main():
     parser = argparse.ArgumentParser(prog="dicom2tiff", description='Convert DICOM files to pyramidal TIFF from base magnification')
-    parser.add_argument('dicom_folder',
+    parser.add_argument('dicom_directories',
                         help="Input filename pattern leading to the folder where the DICOM layers are stored.",
                         nargs="+",
                         type=str)
@@ -17,9 +17,18 @@ def main():
                         help="Output directory, default ./output/",
                         default="./output/",
                         type=str)
-    parser.add_argument('-c', '--convert_partial',
-                        help="Only convert non openslide compatible DICOM directories",
+    parser.add_argument('-a', '--anonymize',
+                        help="Rename files for anonymization",
                         action="store_false")
+    parser.add_argument('-p', '--project_name',
+                        help="Name of project for anonymization file names (only used in case of anonymization",
+                        default="PROJ",
+                        type=str)
+    parser.add_argument('-c', '--csv_file',
+                        help="Name of csv file with file name and anonymized file name correspondance",
+                        default=None,
+                        type=str)
+
     parser.add_argument('-n', '--n_process',
                         help="Number of workers for multiprocessing, default is os.cpu_count()",
                         default=None,
@@ -47,17 +56,52 @@ def main():
     logger.addHandler(f_handler)
 
     # Get args
-    slide_dirs = args.dicom_folder
+    slide_dirs = args.dicom_directories
     out_dir = args.outdir
-    convert_partial = args.convert_partial
+    anon = args.anonymize
+    proj_name = args.project_name
+    csv_file = args.csv_file
     n_process = args.n_process
 
     os.makedirs(out_dir, exist_ok=True)
+
+    if anon:
+        anonymization_data = []
+
+        # If CSV file exists, load existing data
+        if csv_file:
+            if os.path.exists(csv_file):
+                try:
+                    existing_data = pd.read_csv(csv_file)
+                    anonymization_data.extend(existing_data.to_dict('records'))
+                except Exception as e:
+                    logger.error(f"Error reading the CSV file: {e}")
+                    sys.exit(1)
+            else:
+                logger.error("CSV file provided does not exist.")
+                sys.exit(1)
+
+        anon_index = len(anonymization_data)
+
 
     fail = []
     for slide_dir in slide_dirs:
         slide_name = os.path.basename(os.path.dirname(slide_dir))
         print(f"- Working on {slide_name}")
+        for slide_dir in slide_dirs:
+            slide_name = os.path.basename(os.path.dirname(slide_dir))
+            if anon:
+                anon_index += 1
+                anonymized_name = f"ANON_{proj_name}_{anon_index:08d}.tiff"
+                anonymization_data.append({
+                    "original_filename": slide_name,
+                    "anonymized_filename": anonymized_name
+                })
+                print(f"- Renaming {slide_name} to {anonymized_name}")
+                # Rename the file or handle the file processing here
+            else:
+                anonymized_name = slide_name
+
         # Get files name
         list_files = glob.glob(slide_dir + "/*")
 
@@ -91,6 +135,19 @@ def main():
         except Exception as e:
             logger.error(f"File {slide_name} failed: {e}", exc_info=True)
             fail.append(slide_name)
+
+    if anon:
+        # Save or update the CSV file
+        if csv_file:
+            output_csv = csv_file
+        else:
+            output_csv = os.path.join(out_dir, f"anonymization_table_{proj_name}.csv")
+
+        df = pd.DataFrame(anonymization_data)
+        df.to_csv(output_csv, index=False)
+
+        print(f"Anonymization table saved to {output_csv}")
+
 
     for sname in fail:
         print(f"o Slide {sname} failed to convert")
