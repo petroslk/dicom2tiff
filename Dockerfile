@@ -1,42 +1,70 @@
-# Use ubuntu 22.04 base image
-FROM ubuntu:22.04
+FROM ubuntu:jammy
 
-# Set non-interactive mode
 ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+        build-essential \
+        software-properties-common \
+        ninja-build \
+        python3-pip \
+        pkg-config \
+        wget 
 
-# System update and install basic tools
-RUN apt update && \
-    apt upgrade -y && \
-    apt install -y software-properties-common wget bzip2 git ninja-build \
-    vim nano libjpeg-dev libcairo2-dev libgdk-pixbuf2.0-dev libglib2.0-dev libvips \
-    libxml2-dev sqlite3 libopenjp2-7-dev libtiff-dev libsqlite3-dev libhdf5-dev libgl1-mesa-glx libvips libffi7 libffi-dev\
-    build-essential && \ 
-    apt clean
+RUN apt-get install -y vim
+RUN apt-get install -y git ninja-build 
+RUN apt-get install -y glib-2.0-dev libcairo2-dev libgdk-pixbuf-2.0-dev libjpeg-turbo8-dev
+RUN apt-get install -y libopenjp2-7-dev zlib1g-dev libtiff-dev libxml2-dev libpng-dev libsqlite3-dev 
+RUN pip install meson
 
-RUN add-apt-repository ppa:openslide/openslide
-RUN apt install -y openslide-tools
+# needed for DICOM WSI in openslide
+ARG DICOM_VERSION=1.1.0
+ARG DICOM_URL=https://github.com/ImagingDataCommons/libdicom/releases/download/
 
-# Install Miniconda
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-py38_4.12.0-Linux-x86_64.sh -O ~/miniconda.sh && \
-    /bin/bash ~/miniconda.sh -b -p /opt/conda && \
-    rm ~/miniconda.sh && \
-    /opt/conda/bin/conda clean -tipsy && \
-    ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
-    echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    echo "conda activate base" >> ~/.bashrc
+RUN wget ${DICOM_URL}/v${DICOM_VERSION}/libdicom-${DICOM_VERSION}.tar.xz
 
-ENV PATH /opt/conda/bin:$PATH
+RUN tar xfJ libdicom-${DICOM_VERSION}.tar.xz \
+        && cd libdicom-${DICOM_VERSION} \
+        && meson setup --libdir=lib --buildtype=release builddir \
+        && meson compile -C builddir \
+        && meson install -C builddir
 
-# Install Python 3.10 using Conda
-RUN conda install -c anaconda python=3.10
-RUN conda install -c conda-forge libvips
+ARG OPENSLIDE_VERSION=4.0.0
+ARG OPENSLIDE_URL=https://github.com/openslide/openslide/releases/download
 
-# Update the LD_LIBRARY_PATH
-ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/os-dicom/builddir/src
+RUN wget ${OPENSLIDE_URL}/v${OPENSLIDE_VERSION}/openslide-${OPENSLIDE_VERSION}.tar.xz
 
+RUN tar xfJ openslide-${OPENSLIDE_VERSION}.tar.xz \
+        && cd openslide-${OPENSLIDE_VERSION} \
+        && meson setup --libdir=lib --buildtype=release builddir \
+        && meson compile -C builddir \
+        && meson install -C builddir
 
-WORKDIR /
-COPY ./ /dicom2tiff
-WORKDIR /dicom2tiff
-RUN pip install .
-WORKDIR /app
+RUN apt-get install -y \
+        libexpat-dev \
+        librsvg2-dev \
+        libarchive-dev \
+        libexif-dev \
+        liblcms2-dev \
+        libheif-dev \
+        libhwy-dev
+
+# build the head of the stable 8.15 branch
+ARG VIPS_BRANCH=8.15
+ARG VIPS_URL=https://github.com/libvips/libvips/tarball
+
+RUN mkdir libvips-${VIPS_BRANCH} \
+        && cd libvips-${VIPS_BRANCH} \
+        && wget ${VIPS_URL}/${VIPS_BRANCH} -O - | \
+                tar xfz - --strip-components 1
+
+# "--libdir lib" makes it put the library in /usr/local/lib
+# we don't need GOI
+RUN cd libvips-${VIPS_BRANCH} \
+        && rm -rf build \
+        && meson setup build --libdir lib -Dintrospection=disabled \
+        && cd build \
+        && ninja \
+        && ninja test \
+        && ninja install
+
+RUN apt-get install -y default-jre
+RUN pip3 install pyvips numpy pydicom tifftools JPype1
