@@ -68,3 +68,7 @@ RUN cd libvips-${VIPS_BRANCH} \
 
 RUN apt-get install -y default-jre
 RUN pip3 install pyvips numpy pydicom tifftools JPype1
+COPY ./ /dicomWSItk
+WORKDIR /dicomWSItk
+RUN pip install .
+WORKDIR /app

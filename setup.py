@@ -9,15 +9,15 @@ with open("requirements.txt", "r", encoding="utf-8") as rq:
 
 setup(
     # Library name
-    name="dicom2tiff",
+    name="dicomWSItk",
 
     version="1.0.0",
 
-    author="Your Name",
+    author="Julien Massonnet, Petros Liakopoulos",
 
     author_email="liakopoulos.petros@gmail.com",
 
-    description="dicom2tiff is a tool for converting DICOM-WSI files to pyramid TIFF files",
+    description="dicomWSItk is a toolkit for working with DICOM WSI and openslide",
 
     long_description=long_description,
 
@@ -28,6 +28,9 @@ setup(
     install_requires=requirements,
 
     packages=find_packages(),
+        package_data={
+        'dicomWSItk': ['pixelmed.jar'],
+    },
 
     include_package_data=True,
 
@@ -38,6 +41,6 @@ setup(
         "Operating System :: OS Independent",
     ],
     entry_points={
-        "console_scripts": ["dicom2tiff=dicom2tiff.main:main"],
+        "console_scripts": ["dicomWSItk=dicomWSItk.main:main"],
     },
 )

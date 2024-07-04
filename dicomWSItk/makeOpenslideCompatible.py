@@ -7,9 +7,14 @@ import argparse
 import jpype
 import jpype.imports
 import sys
+import pkg_resources
+
+jar_path = pkg_resources.resource_filename('dicomWSItk', 'pixelmed.jar')
 
 # Start the JVM
-jpype.startJVM(classpath=[os.path.join(os.path.dirname(__file__),'pixelmed.jar')])
+jpype.startJVM(classpath=[jar_path])
+# Start the JVM
+# jpype.startJVM(classpath=[os.path.join(os.path.dirname(__file__),'pixelmed.jar')])
 
 # Import the Java classes to concatenate Dicom
 from com.pixelmed.apps import MergeConcatenationInstances
@@ -25,16 +30,18 @@ def get_info_slide(spath):
     i=1
     #get files name
     list_files = [p for p in glob.glob(os.path.join(spath,"*.dcm")) if not "dcm.graphics" in p]
+    list_files_sorted = sorted(list_files, key=os.path.getsize, reverse=True)
     #get magnification and ofset
     files_info = {}
-    for fname in list_files:
+    for fname in list_files_sorted:
         try:
             slide = pydicom.dcmread(fname)
-            if slide.get(0x52009230) is not None:
+            mag = magnification_from_mpp(slide[0x52009229][0][0x00289110][0][0x00280030].value[0]*10**3)
+            if mag < 1:
                 files_info.setdefault(-i,[]).append(fname)
                 i+=1
             else:
-                files_info.setdefault(magnification_from_mpp(slide[0x52009229][0][0x00289110][0][0x00280030].value[0]*10**3),[]).append(fname)
+                files_info.setdefault(mag,[]).append(fname)
         except:
             continue
     return files_info
