@@ -8,7 +8,7 @@ import csv
 import shutil
 import pyvips
 import tifftools
-from .makeOpenslideCompatible import get_info_slide,makeOsCompat
+from .makeOpenslideCompatible import get_info_slide,makeOsCompat, rename_slide_files
 from . import __version__
 
 def mpp_from_magnification(mag):
@@ -106,8 +106,9 @@ def main():
                 makeOsCompat(slide_info,spath,sname)
                 basefile = os.path.join(spath,sname+"_0.dcm")
             else:
+                rename_slide_files(slide_info, spath, sname, outdir)
                 basefile = slide_info[base_mag]
-                #outdir = os.path.dirname(spath)
+                
 
 
     elif args.tools =="dicom2tiff":

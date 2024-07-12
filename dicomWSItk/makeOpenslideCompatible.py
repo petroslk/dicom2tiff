@@ -124,6 +124,26 @@ def makeOpenslideCompatible(spaths,outdir=None) -> None:
         #convert Dicom
         makeOsCompat(slide_info,spath,name)
 
+def rename_slide_files(slide_info, spath, sname, outdir=None):
+    i = 0
+    for m in np.sort(list(slide_info.keys()))[::-1]:
+        if outdir:
+            os.makedirs(outdir, exist_ok=True)
+            os.mkdir(os.path.join(outdir, sname + f"_{i}"))
+            os.rename(slide_info[m][0], os.path.join(outdir, sname + f"_{i}", sname + f"_{i}.dcm"))
+        else:
+            os.mkdir(os.path.join(spath, sname + f"_{i}"))
+            os.rename(slide_info[m][0], os.path.join(spath, sname + f"_{i}", sname + f"_{i}.dcm"))
+        i += 1
+    for j in range(i):
+        if outdir:
+            os.rename(os.path.join(outdir, sname + f"_{j}", sname + f"_{j}.dcm"), os.path.join(outdir, sname + f"_{j}.dcm"))
+            shutil.rmtree(os.path.join(outdir, sname + f"_{j}"))
+        else:
+            os.rename(os.path.join(spath, sname + f"_{j}", sname + f"_{j}.dcm"), os.path.join(spath, sname + f"_{j}.dcm"))
+            shutil.rmtree(os.path.join(spath, sname + f"_{j}"))
+
+
 if __name__ == "__main__":
     args = get_args()
     spaths = args.dicom_folders
